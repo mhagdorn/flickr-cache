@@ -1,0 +1,5 @@
+*~
+flickr.cache
+build
+dist
+flickr_cache.egg-info/
