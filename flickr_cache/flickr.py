@@ -45,26 +45,21 @@ class FlickrCache:
             self._session.commit()
         return owner
 
-    def getPhoto(self, photo_id):
-        photo = self._session.query(Photo).filter_by(id=photo_id).one_or_none()
+    def _getPhoto(self, p):
+        photo = Photo.query.filter_by(id=p['id']).one_or_none()
         if photo is None:
-            info = _flickr.photos_getInfo(photo_id=photo_id)
-            if info['stat'] != 'ok':
-                raise RuntimeError
-            owner = self.getOwner(info['photo']['owner']['nsid'])
-            # add the photo
-            p = {}
+            _p = {}
             for f in ['id', 'secret', 'server', 'farm']:
-                p[f] = info['photo'][f]
+                _p[f] = p[f]
             for f in ['title', 'description']:
-                p[f] = info['photo'][f]['_content']
-            p['date'] = datetime.datetime.fromtimestamp(
-                int(info['photo']['dateuploaded']))
-            p['owner'] = owner
-            if 'location' in info['photo']:
+                _p[f] = p[f]['_content']
+            _p['date'] = datetime.datetime.fromtimestamp(
+                int(p['dateuploaded']))
+            _p['owner'] = self.getOwner(p['owner']['nsid'])
+            if 'location' in p:
                 for f in ['latitude', 'longitude']:
-                    p[f] = float(info['photo']['location'][f])
-            photo = Photo(**p)
+                    _p[f] = float(p['location'][f])
+            photo = Photo(**_p)
             self._session.add(photo)
             # get the sizes
             sizes = _flickr.photos_getSizes(photo_id=photo.id)
@@ -74,7 +69,15 @@ class FlickrCache:
                 size = Size(label=s['label'], width=s['width'],
                             height=s['height'], photo=photo, url=s['source'])
                 self._session.add(size)
+        return photo
 
+    def getPhoto(self, photo_id):
+        photo = self._session.query(Photo).filter_by(id=photo_id).one_or_none()
+        if photo is None:
+            info = _flickr.photos_getInfo(photo_id=photo_id)
+            if info['stat'] != 'ok':
+                raise RuntimeError
+            photo = self._getPhoto(info['photo'])
             self._session.commit()
         return photo
 
