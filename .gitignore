@@ -3,3 +3,4 @@ flickr.cache
 build
 dist
 flickr_cache.egg-info/
+flickr_cache/__pycache__
