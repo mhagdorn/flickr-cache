@@ -10,4 +10,9 @@ setup(name='flickr-cache',
       author='Magnus Hagdorn',
       author_email='magnus.hagdorn@marsupium.org',
       url='https://github.com/mhagdorn/flickr-cache',
-      packages=['flickr_cache'])
+      packages=['flickr_cache'],
+      extras_require={
+          'lint': [
+              'flake8>=3.5.0',
+          ],
+      })
