@@ -1,4 +1,4 @@
-__all__ = ['Base', 'Owner', 'Photo', 'Size', 'Tag', 'Tags', 'Album']
+__all__ = ['Base', 'Owner', 'Photo', 'Size', 'Tag', 'Album']
 
 
 from sqlalchemy.orm import relationship
@@ -13,6 +13,16 @@ album_association = sqlalchemy.Table(
     'albums', Base.metadata,
     sqlalchemy.Column('albumid', sqlalchemy.Integer,
                       sqlalchemy.ForeignKey('album.id'),
+                      primary_key=True),
+    sqlalchemy.Column('photoid', sqlalchemy.Text,
+                      sqlalchemy.ForeignKey('photo.id'),
+                      primary_key=True))
+
+
+tag_association = sqlalchemy.Table(
+    'tags', Base.metadata,
+    sqlalchemy.Column('tagid', sqlalchemy.Integer,
+                      sqlalchemy.ForeignKey('tag.id'),
                       primary_key=True),
     sqlalchemy.Column('photoid', sqlalchemy.Text,
                       sqlalchemy.ForeignKey('photo.id'),
@@ -55,7 +65,8 @@ class Photo(Base):
 
     owner = relationship("Owner", back_populates="photos")
     sizes = relationship("Size", back_populates="photo")
-    tags = relationship("Tags", back_populates="photo")
+    tags = relationship("Tag", secondary=tag_association,
+                        back_populates="photos")
     albums = relationship("Album", secondary=album_association,
                           back_populates="photos")
 
@@ -111,21 +122,10 @@ class Tag(Base):
     owner_id = sqlalchemy.Column(
         sqlalchemy.Text, sqlalchemy.ForeignKey('owner.nsid'))
 
-    tags = relationship("Tags", back_populates="tag")
+    photos = relationship("Photo", secondary=tag_association,
+                          back_populates="tags",
+                          order_by="Photo.date.desc()")
     owner = relationship("Owner", back_populates="tags")
-
-
-class Tags(Base):
-    __tablename__ = 'tags'
-
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
-    tagid = sqlalchemy.Column(sqlalchemy.Integer,
-                              sqlalchemy.ForeignKey('tag.id'))
-    photoid = sqlalchemy.Column(
-        sqlalchemy.Text, sqlalchemy.ForeignKey('photo.id'))
-
-    tag = relationship("Tag", back_populates="tags")
-    photo = relationship("Photo", back_populates="tags")
 
 
 class Album(Base):

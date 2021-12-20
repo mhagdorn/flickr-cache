@@ -1,7 +1,6 @@
 __all__ = ['FlickrCache', 'loadConfig']
 
-from .models import Base, Owner, Photo, Size
-from .models import Tag, Tags, Album
+from .models import Base, Owner, Photo, Size, Tag, Album
 
 from pathlib import Path
 import flickrapi
@@ -127,15 +126,14 @@ class FlickrCache:
             ids = _flickr.photos_search(**search)
             for p in ids['photos']['photo']:
                 photo = self._getPhoto(p)
-                phtag = Tags(tag=_tag, photo=photo)
-                self._session.add(phtag)
+                _tag.photos.append(photo)
 
             break
         _tag.last_visited = datetime.datetime.now()
         self._session.commit()
 
-        for t in _tag.tags:
-            yield t.photo
+        for photo in _tag.photos:
+            yield photo
 
     def getAlbum(self, album, nsid=None):
         if nsid is None:
@@ -207,12 +205,12 @@ if __name__ == '__main__':
         print(flickr.getPhotoURL(51348573568, width=1000).as_dict())
         print(photo.get_url(width=1000).as_dict())
 
-    if False:
+    if True:
         for photo in flickr.getTaggedPhotos('tea_v_bread'):
             pprint(photo.as_dict())
         for photo in flickr.getTaggedPhotos('tvb_tag'):
             pprint(photo.as_dict())
 
-    if True:
+    if False:
         for photo in flickr.getAlbum(72157656744058959):
             pprint(photo.as_dict())
