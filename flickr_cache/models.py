@@ -1,4 +1,4 @@
-__all__ = ['Base', 'Owner', 'Photo', 'Size']
+__all__ = ['Base', 'Owner', 'Photo', 'Size', 'Tag', 'Tags']
 
 
 from sqlalchemy.orm import relationship
@@ -18,6 +18,7 @@ class Owner(Base):
     path_alias = sqlalchemy.Column(sqlalchemy.Text)
 
     photos = relationship("Photo", back_populates="owner")
+    tags = relationship("Tag", back_populates="owner")
 
     def as_dict(self):
         d = {}
@@ -43,6 +44,7 @@ class Photo(Base):
 
     owner = relationship("Owner", back_populates="photos")
     sizes = relationship("Size", back_populates="photo")
+    tags = relationship("Tags", back_populates="photo")
 
     def get_url(self, width=None, height=None):
         query = [Size.photoid == self.id]
@@ -85,3 +87,29 @@ class Size(Base):
         for k in ['label', 'width', 'height', 'url']:
             d[k] = getattr(self, k)
         return d
+
+
+class Tag(Base):
+    __tablename__ = 'tag'
+
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
+    tag = sqlalchemy.Column(sqlalchemy.Text, unique=True)
+    last_visited = sqlalchemy.Column(sqlalchemy.DateTime)
+    owner_id = sqlalchemy.Column(
+        sqlalchemy.Text, sqlalchemy.ForeignKey('owner.nsid'))
+
+    tags = relationship("Tags", back_populates="tag")
+    owner = relationship("Owner", back_populates="tags")
+
+
+class Tags(Base):
+    __tablename__ = 'tags'
+
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
+    tagid = sqlalchemy.Column(sqlalchemy.Integer,
+                              sqlalchemy.ForeignKey('tag.id'))
+    photoid = sqlalchemy.Column(
+        sqlalchemy.Text, sqlalchemy.ForeignKey('photo.id'))
+
+    tag = relationship("Tag", back_populates="tags")
+    photo = relationship("Photo", back_populates="tags")

@@ -1,6 +1,6 @@
 __all__ = ['FlickrCache', 'loadConfig']
 
-from .models import Base, Owner, Photo, Size
+from .models import Base, Owner, Photo, Size, Tag, Tags
 
 from pathlib import Path
 import flickrapi
@@ -15,7 +15,7 @@ _flickr = None
 
 class FlickrCache:
 
-    def __init__(self, cache='sqlite:///flickr.cache'):
+    def __init__(self, cache='sqlite:///flickr.cache', nsid=None):
         global _Session
 
         if _flickr is None:
@@ -26,9 +26,17 @@ class FlickrCache:
         Base.query = Session.query_property()
         self._session = Session()
 
+        self._user = None
+        if nsid is not None:
+            self._user = self.getOwner(nsid)
+
     def __del__(self):
         logging.debug('closing cache')
         self._session.close()
+
+    @property
+    def default_user(self):
+        return self._user
 
     def getOwner(self, nsid):
         owner = self._session.query(Owner).filter_by(
@@ -52,10 +60,19 @@ class FlickrCache:
             for f in ['id', 'secret', 'server', 'farm']:
                 _p[f] = p[f]
             for f in ['title', 'description']:
-                _p[f] = p[f]['_content']
-            _p['date'] = datetime.datetime.fromtimestamp(
-                int(p['dateuploaded']))
-            _p['owner'] = self.getOwner(p['owner']['nsid'])
+                if isinstance(p[f], dict):
+                    _p[f] = p[f]['_content']
+                else:
+                    _p[f] = p[f]
+            for f in ['dateuploaded', 'dateupload']:
+                if f in p:
+                    _p['date'] = datetime.datetime.fromtimestamp(
+                        int(p[f]))
+                    break
+            if isinstance(p['owner'], dict):
+                _p['owner'] = self.getOwner(p['owner']['nsid'])
+            else:
+                _p['owner'] = self.getOwner(p['owner'])
             if 'location' in p:
                 for f in ['latitude', 'longitude']:
                     _p[f] = float(p['location'][f])
@@ -83,6 +100,38 @@ class FlickrCache:
 
     def getPhotoURL(self, photo_id, width=None, height=None):
         return self.getPhoto(photo_id).get_url(width=width, height=height)
+
+    def getTaggedPhotos(self, tag, nsid=None):
+        if nsid is None:
+            user = self.default_user
+        else:
+            user = self.getOwner(nsid)
+
+        _tag = Tag.query.filter_by(tag=tag, owner=user).one_or_none()
+        if _tag is None:
+            _tag = Tag(tag=tag, owner=user)
+            self._session.add(_tag)
+        search = {'user_id': user.nsid,
+                  'tags': tag,
+                  'sort': 'date-posted-dsc',
+                  'per_page': "200",
+                  'extras': 'description,date_upload'}
+        if _tag.last_visited is not None:
+            search['min_upload_date'] = str(_tag.last_visited.date())
+        while True:
+            ids = _flickr.photos_search(**search)
+            for p in ids['photos']['photo']:
+                print(p)
+                photo = self._getPhoto(p)
+                phtag = Tags(tag=_tag, photo=photo)
+                self._session.add(phtag)
+
+            break
+        _tag.last_visited = datetime.datetime.now()
+        self._session.commit()
+
+        for t in _tag.tags:
+            yield t.photo
 
 
 def loadConfig(fname=Path('~/.flickr.cfg').expanduser()):
@@ -115,11 +164,18 @@ if __name__ == '__main__':
 
     logging.basicConfig(level=logging.DEBUG)
 
-    flickr = FlickrCache()
+    flickr = FlickrCache(nsid="43405950@N07")
 
-    pprint(flickr.getPhoto(17214949923).as_dict())
-    photo = flickr.getPhoto(51348573568)
-    pprint(photo.as_dict())
+    if False:
+        pprint(flickr.getPhoto(17214949923).as_dict())
+        photo = flickr.getPhoto(51348573568)
+        pprint(photo.as_dict())
 
-    print(flickr.getPhotoURL(51348573568, width=1000).as_dict())
-    print(photo.get_url(width=1000).as_dict())
+        print(flickr.getPhotoURL(51348573568, width=1000).as_dict())
+        print(photo.get_url(width=1000).as_dict())
+
+    if True:
+        for photo in flickr.getTaggedPhotos('tea_v_bread'):
+            pprint(photo.as_dict())
+        for photo in flickr.getTaggedPhotos('tvb_tag'):
+            pprint(photo.as_dict())
