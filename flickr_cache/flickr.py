@@ -76,6 +76,10 @@ class FlickrCache:
             if 'location' in p:
                 for f in ['latitude', 'longitude']:
                     _p[f] = float(p['location'][f])
+            else:
+                for f in ['latitude', 'longitude']:
+                    if f in p:
+                        _p[f] = float(p[f])
             photo = Photo(**_p)
             self._session.add(photo)
             # get the sizes
@@ -115,7 +119,7 @@ class FlickrCache:
                   'tags': tag,
                   'sort': 'date-posted-dsc',
                   'per_page': "200",
-                  'extras': 'description,date_upload'}
+                  'extras': 'description,date_upload,geo'}
         if _tag.last_visited is not None:
             search['min_upload_date'] = str(_tag.last_visited.date())
         while True:
