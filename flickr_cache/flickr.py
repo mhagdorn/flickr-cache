@@ -1,6 +1,7 @@
 __all__ = ['FlickrCache', 'loadConfig']
 
-from .models import Base, Owner, Photo, Size, Tag, Tags
+from .models import Base, Owner, Photo, Size
+from .models import Tag, Tags, Album, Albums
 
 from pathlib import Path
 import flickrapi
@@ -136,6 +137,36 @@ class FlickrCache:
         for t in _tag.tags:
             yield t.photo
 
+    def getAlbum(self, album, nsid=None):
+        if nsid is None:
+            user = self.default_user
+        else:
+            user = self.getOwner(nsid)
+
+        _album = Album.query.filter_by(album=album, owner=user).one_or_none()
+        if _album is None:
+            _album = Album(album=album, owner=user)
+            self._session.add(_album)
+        if _album.last_visited is None or \
+           (datetime.datetime.now() - _album.last_visited).days > 1:
+            while True:
+                ids = _flickr.photosets_getPhotos(
+                    user_id=user.nsid, photoset_id=album,
+                    media='photos', per_page="200",
+                    extras="date_upload,geo,description")
+                for p in ids['photoset']['photo']:
+                    p['owner'] = user.nsid
+                    photo = self._getPhoto(p)
+                    phalbum = Albums(album=_album, photo=photo)
+                    self._session.add(phalbum)
+
+                break
+        _album.last_visited = datetime.datetime.now()
+        self._session.commit()
+
+        for a in _album.albums:
+            yield a.photo
+
 
 def loadConfig(fname=Path('~/.flickr.cfg').expanduser()):
     """load flickr API key and secret from config file"""
@@ -177,8 +208,12 @@ if __name__ == '__main__':
         print(flickr.getPhotoURL(51348573568, width=1000).as_dict())
         print(photo.get_url(width=1000).as_dict())
 
-    if True:
+    if False:
         for photo in flickr.getTaggedPhotos('tea_v_bread'):
             pprint(photo.as_dict())
         for photo in flickr.getTaggedPhotos('tvb_tag'):
+            pprint(photo.as_dict())
+
+    if True:
+        for photo in flickr.getAlbum(72157656744058959):
             pprint(photo.as_dict())

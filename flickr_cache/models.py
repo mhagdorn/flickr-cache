@@ -1,4 +1,4 @@
-__all__ = ['Base', 'Owner', 'Photo', 'Size', 'Tag', 'Tags']
+__all__ = ['Base', 'Owner', 'Photo', 'Size', 'Tag', 'Tags', 'Album', 'Albums']
 
 
 from sqlalchemy.orm import relationship
@@ -19,6 +19,7 @@ class Owner(Base):
 
     photos = relationship("Photo", back_populates="owner")
     tags = relationship("Tag", back_populates="owner")
+    albums = relationship("Album", back_populates="owner")
 
     def as_dict(self):
         d = {}
@@ -45,6 +46,7 @@ class Photo(Base):
     owner = relationship("Owner", back_populates="photos")
     sizes = relationship("Size", back_populates="photo")
     tags = relationship("Tags", back_populates="photo")
+    albums = relationship("Albums", back_populates="photo")
 
     def get_url(self, width=None, height=None):
         query = [Size.photoid == self.id]
@@ -113,3 +115,29 @@ class Tags(Base):
 
     tag = relationship("Tag", back_populates="tags")
     photo = relationship("Photo", back_populates="tags")
+
+
+class Album(Base):
+    __tablename__ = 'album'
+
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
+    album = sqlalchemy.Column(sqlalchemy.Text, unique=True)
+    last_visited = sqlalchemy.Column(sqlalchemy.DateTime)
+    owner_id = sqlalchemy.Column(
+        sqlalchemy.Text, sqlalchemy.ForeignKey('owner.nsid'))
+
+    albums = relationship("Albums", back_populates="album")
+    owner = relationship("Owner", back_populates="albums")
+
+
+class Albums(Base):
+    __tablename__ = 'albums'
+
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
+    albumid = sqlalchemy.Column(sqlalchemy.Integer,
+                                sqlalchemy.ForeignKey('album.id'))
+    photoid = sqlalchemy.Column(
+        sqlalchemy.Text, sqlalchemy.ForeignKey('photo.id'))
+
+    album = relationship("Album", back_populates="albums")
+    photo = relationship("Photo", back_populates="albums")
