@@ -1,4 +1,4 @@
-__all__ = ['Base', 'Owner', 'Photo', 'Size', 'Tag', 'Tags', 'Album', 'Albums']
+__all__ = ['Base', 'Owner', 'Photo', 'Size', 'Tag', 'Tags', 'Album']
 
 
 from sqlalchemy.orm import relationship
@@ -7,6 +7,16 @@ import sqlalchemy
 
 
 Base = declarative_base()
+
+
+album_association = sqlalchemy.Table(
+    'albums', Base.metadata,
+    sqlalchemy.Column('albumid', sqlalchemy.Integer,
+                      sqlalchemy.ForeignKey('album.id'),
+                      primary_key=True),
+    sqlalchemy.Column('photoid', sqlalchemy.Text,
+                      sqlalchemy.ForeignKey('photo.id'),
+                      primary_key=True))
 
 
 class Owner(Base):
@@ -46,7 +56,8 @@ class Photo(Base):
     owner = relationship("Owner", back_populates="photos")
     sizes = relationship("Size", back_populates="photo")
     tags = relationship("Tags", back_populates="photo")
-    albums = relationship("Albums", back_populates="photo")
+    albums = relationship("Album", secondary=album_association,
+                          back_populates="photos")
 
     def get_url(self, width=None, height=None):
         query = [Size.photoid == self.id]
@@ -126,18 +137,7 @@ class Album(Base):
     owner_id = sqlalchemy.Column(
         sqlalchemy.Text, sqlalchemy.ForeignKey('owner.nsid'))
 
-    albums = relationship("Albums", back_populates="album")
+    photos = relationship("Photo", secondary=album_association,
+                          back_populates="albums",
+                          order_by="Photo.date.desc()")
     owner = relationship("Owner", back_populates="albums")
-
-
-class Albums(Base):
-    __tablename__ = 'albums'
-
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
-    albumid = sqlalchemy.Column(sqlalchemy.Integer,
-                                sqlalchemy.ForeignKey('album.id'))
-    photoid = sqlalchemy.Column(
-        sqlalchemy.Text, sqlalchemy.ForeignKey('photo.id'))
-
-    album = relationship("Album", back_populates="albums")
-    photo = relationship("Photo", back_populates="albums")

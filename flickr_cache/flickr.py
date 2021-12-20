@@ -1,7 +1,7 @@
 __all__ = ['FlickrCache', 'loadConfig']
 
 from .models import Base, Owner, Photo, Size
-from .models import Tag, Tags, Album, Albums
+from .models import Tag, Tags, Album
 
 from pathlib import Path
 import flickrapi
@@ -157,15 +157,14 @@ class FlickrCache:
                 for p in ids['photoset']['photo']:
                     p['owner'] = user.nsid
                     photo = self._getPhoto(p)
-                    phalbum = Albums(album=_album, photo=photo)
-                    self._session.add(phalbum)
+                    _album.photos.append(photo)
 
                 break
         _album.last_visited = datetime.datetime.now()
         self._session.commit()
 
-        for a in _album.albums:
-            yield a.photo
+        for photo in _album.photos:
+            yield photo
 
 
 def loadConfig(fname=Path('~/.flickr.cfg').expanduser()):
