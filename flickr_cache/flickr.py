@@ -125,7 +125,6 @@ class FlickrCache:
         while True:
             ids = _flickr.photos_search(**search)
             for p in ids['photos']['photo']:
-                print(p)
                 photo = self._getPhoto(p)
                 phtag = Tags(tag=_tag, photo=photo)
                 self._session.add(phtag)
