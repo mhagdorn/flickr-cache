@@ -9,6 +9,29 @@ import sqlalchemy
 Base = declarative_base()
 
 
+FLICKR_SIZE_LABELS = {
+    'Square': 's',
+    'Large Square': 'q',
+    'Thumbnail': 't',
+    'Small': 'm',
+    'Small 320': 'n',
+    'Small 400': 'w',
+    'Medium 640': 'z',
+    'Medium 800': 'c',
+    'Large': 'b',
+    'Large 1600': 'h',
+    'Large 2048': 'k',
+    'X-Large 3K': '3k',
+    'X-Large 4K': '4k',
+    'X-Large 5K': '5k',
+    'X-Large 6K': '6k',
+    'Original': 'o'}
+
+
+FLICKR_SIZE_SUFFIXES = dict(
+    reversed(item) for item in FLICKR_SIZE_LABELS.items())
+
+
 album_association = sqlalchemy.Table(
     'albums', Base.metadata,
     sqlalchemy.Column('albumid', sqlalchemy.Integer,
@@ -70,14 +93,21 @@ class Photo(Base):
     albums = relationship("Album", secondary=album_association,
                           back_populates="photos")
 
-    def get_url(self, width=None, height=None):
+    @property
+    def flickrpage(self):
+        return f'https://www.flickr.com/photos/' \
+            f'{self.owner.path_alias}/{self.id}'
+
+    def get_url(self, width=None, height=None, label='Medium', suffix=None):
         query = [Size.photoid == self.id]
         if width is not None:
             query.append(Size.width > width)
         if height is not None:
             query.append(Size.height > height)
         if width is None and height is None:
-            query.append(Size.label == 'Medium')
+            if suffix is not None:
+                label = FLICKR_SIZE_SUFFIXES[suffix]
+            query.append(Size.label == label)
         return Size.query.filter(*query).order_by(
             Size.width, Size.label).limit(1).one_or_none()
 
